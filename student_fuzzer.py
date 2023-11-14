@@ -1,10 +1,13 @@
+import inspect
+
 from fuzzingbook import GreyboxFuzzer as gbf
 from fuzzingbook import Coverage as cv
 from fuzzingbook import MutationFuzzer as mf
 
 from collections import deque
 from difflib import SequenceMatcher
-from typing import List, Set, Any, Tuple, Dict, Union
+from typing import List, Set, Any, Tuple, Optional, Callable, Dict, Union
+from types import FrameType
 
 import traceback
 import numpy as np
@@ -30,26 +33,37 @@ class MyCoverage(cv.Coverage):
         self.n_gram = n_gram
         self.ngram_queue = deque(maxlen=n_gram)
         self.ngrams = set()
+        self.depth = 0
 
-    def traceit(self, frame, event, arg):
-        # First, call the base class traceit to handle single line coverage
-        super_trace_response = super().traceit(frame, event, arg)
+    def traceit(self, frame: FrameType, event: str, arg: Any) -> Optional[Callable]:
+
+        # Trace execution depth
+        if event == 'call':
+            self.depth += 1
+        elif event == 'return':
+            self.depth -= 1
 
         # For function calls or returns, we add to the n-gram queue
-        if event in ("call", "return"):
+        if event == "line":
             function_name = frame.f_code.co_name
             lineno = frame.f_lineno
             location = (function_name, lineno)
 
             # Update the n-gram queue with the current location
             self.ngram_queue.append(location)
-
             # Once we have a full n-gram, add it to the set of n-grams
             if len(self.ngram_queue) == self.n_gram:
-                self.ngrams.add(tuple(self.ngram_queue))
+                self.ngrams.add((tuple(self.ngram_queue), self.depth))
+                # 移除最早的元素以保持队列大小
+                self.ngram_queue.popleft()
+
 
         # Returning the base class response ensures that we continue tracing as before
-        return super_trace_response
+        return self.traceit
+
+
+
+
 
     def coverage(self) -> Set[Tuple[str, int]]:
         # Return the line coverage
@@ -78,7 +92,7 @@ class MyFunctionCoverageRunner(mf.FunctionRunner):
                 raise exc
 
             # Save both line coverage and n-gram coverage
-            self._coverage = cov.coverage()
+            # self._coverage = cov.coverage()
             self._ngram_coverage = cov.ngram_coverage()
 
         return result
@@ -89,6 +103,9 @@ class MyFunctionCoverageRunner(mf.FunctionRunner):
     def ngram_coverage(self) -> Set[Tuple[Tuple[str, int]]]:
         # Return the n-gram coverage
         return self._ngram_coverage
+
+
+
 
 
 
@@ -117,6 +134,11 @@ class CountingGreyboxFuzzer(gbf.GreyboxFuzzer):
 class MyMutator(gbf.Mutator):
     def __init__(self):
         super().__init__()
+        self.ngram_data = []
+        self.depth_threshold = 2
+
+    def update_ngram(self, ngram_coverage):
+        self.ngram_data = ngram_coverage
 
 
     # Erase a byte from the data
@@ -171,11 +193,13 @@ class MyMutator(gbf.Mutator):
         start_time = time.time()
 
         def run_trace(s):
-            sys.settrace(tracer.trace)  # 开始跟踪
+            # start tracing
+            sys.settrace(tracer.trace)
             try:
                 entrypoint(s)
             finally:
-                sys.settrace(None)  # 停止跟踪
+                # end tracing
+                sys.settrace(None)
 
         run_trace(s)
         execution_depth = tracer.get_max_depth()
@@ -188,13 +212,15 @@ class MyMutator(gbf.Mutator):
         # 根据执行深度和运行时间调整变异策略
         if execution_depth > self.max_depth * 0.8 or duration > self.max_duration * 0.8:
             # 如果执行深度或运行时间接近最大值，尝试特定的变异策略
-            # 例如，尝试更改输入的特定字符以探索新路径
             index = random.randrange(len(s))
-            s = s[:index] + random.choice(string.ascii_letters + '!') + s[index + 1:]
+            char_to_insert = random.choice(string.ascii_letters + string.digits + string.punctuation)
+            s = s[:index] + char_to_insert + s[index:]
 
         return s
 
     def generate_input(self) -> str:
+
+        chosen_ngram, chosen_depth = random.choice(list(self.ngrams))
 
         data = bytearray(random.choice(self.seed))
 
@@ -202,21 +228,33 @@ class MyMutator(gbf.Mutator):
         for i in range(num_mutations):
             if not data:
                 return ""
-            choice = random.randrange(4)
-            if choice == 0:
-                data = self.mutate_erase_bytes(data)
-            elif choice == 1:
-                data = self.mutate_insert_bytes(data)
-            elif choice == 2:
-                data = self.mutate_insert_repeated_bytes(data)
-            elif choice == 3:
-                data = self.mutate_depth_exe(data)
-            elif choice == 4:
-                data = self.mutate_input_reduce(data)
 
+            # 根据执行深度选择变异策略
+            if chosen_depth > self.depth_threshold:
+                # 对于较深的执行深度，倾向于使用更复杂的变异
+                choice = random.choice([3, 4])
             else:
-                assert False
+                # 对于较浅的执行深度，使用较简单的变异
+                choice = random.randrange(3)
+
+            # 应用选定的变异方法
+            data = self.apply_mutation(choice, data)
+
         return data.decode('utf-8', errors='ignore')
+
+    def apply_mutation(self, choice, data):
+        if choice == 0:
+            return self.mutate_erase_bytes(data)
+        elif choice == 1:
+            return self.mutate_insert_bytes(data)
+        elif choice == 2:
+            return self.mutate_insert_repeated_bytes(data)
+        elif choice == 3:
+            return self.mutate_depth_exe(data)
+        elif choice == 4:
+            return self.mutate_input_reduce(data)
+        else:
+            assert False
 
 
 # 计算执行深度--跟踪函数调用的嵌套级别
@@ -279,4 +317,4 @@ if __name__ == "__main__":
     # for check
     print("Starting fuzzing loop...")
     fast_fuzzer.runs(line_runner, trials=9999999)
-    print("Fuzzing loop end.")
+    print("Max trials end.")

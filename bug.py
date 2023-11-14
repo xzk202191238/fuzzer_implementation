@@ -12,9 +12,10 @@ def entrypoint(s):
         for i in range(0, i1 * i2):
             x += 1
 
-    if len(s) > 2 and s[2] == 'b':
-        if len(s) > 3 and s[3] == 'a':
-            if len(s) > 4 and s[4] == 'd':
-                if len(s) > 5 and s[5] == '!':
-                    print(f"Found the bug after {x} loop iterations!")
-                    exit(219)
+    if len(s) > 2 and s[2] == 'g':
+        if len(s) > 3 and s[3] == 'o':
+            if len(s) > 4 and s[4] == 'o':
+                if len(s) > 5 and s[5] == 'd':
+                    if len(s) > 6 and s[6] == '#':
+                        print(f"Found the bug after {x} loop iterations!")
+                        exit(219)
