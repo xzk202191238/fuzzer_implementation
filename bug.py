@@ -1,21 +1,22 @@
-
 def get_initial_corpus():
     return ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
 
 
 def entrypoint(s):
-    x = 0
+    # 初始条件
+    cond1 = False
+    cond2 = False
 
-    if len(s) > 1:
-        i1 = ord(s[0])
-        i2 = ord(s[1])
-        for i in range(0, i1 * i2):
-            x += 1
+    # 简化的条件判断
+    if len(s) > 5 and s[0] == 'a':
+        cond1 = True
 
-    if len(s) > 2 and s[2] == 'g':
-        if len(s) > 3 and s[3] == 'o':
-            if len(s) > 4 and s[4] == 'o':
-                if len(s) > 5 and s[5] == 'd':
-                    if len(s) > 6 and s[6] == '#':
-                        print(f"Found the bug after {x} loop iterations!")
-                        exit(219)
+    # 检查特定模式
+    if "buggy" in s:
+        cond2 = True
+
+    # 检查是否满足触发 bug 的条件
+    if cond1 and cond2:
+        print(f"Bug found with string: {s}")
+        exit(219)
+

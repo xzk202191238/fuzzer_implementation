@@ -341,7 +341,8 @@ def getNgramPathID(ngram_coverage: Set[Tuple[Tuple[str, int]]]) -> str:
 
 
 if __name__ == "__main__":
-    seed_inputs = get_initial_corpus()
+    seed_inputs = sys.argv[1]
+    print(seed_inputs)
     fast_schedule = gbf.AFLFastSchedule(5)
     my_mutator = MyMutator()
     line_runner = MyFunctionCoverageRunner(entrypoint)
