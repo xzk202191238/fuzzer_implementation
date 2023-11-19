@@ -23,9 +23,6 @@ from bug import get_initial_corpus
 
 
 
-
-
-
 class MyCoverage(cv.Coverage):
     def __init__(self, n_gram=2):
         super().__init__()
@@ -71,7 +68,6 @@ class MyCoverage(cv.Coverage):
         # Return the n-gram coverage
         return self.ngrams
 
-
     def get_ngram_data(self):
         return [(ngram, depth) for ngram, depth in self.ngrams]
 
@@ -109,15 +105,12 @@ class MyFunctionCoverageRunner(mf.FunctionRunner):
     def get_max_depth(self):
         return self._max_depth
 
-
     def coverage(self) -> Set[Tuple[str, int]]:
         return self._ngram_coverage
 
     def ngram_coverage(self) -> Set[Tuple[Tuple[str, int]]]:
         # Return the n-gram coverage
         return self._ngram_coverage
-
-
 
 
 
@@ -223,12 +216,9 @@ class MyMutator(gbf.Mutator):
 
 
     def duplicated_mutate(self, s: str) -> str:
-
-        # 生成前缀和后缀的随机长度
         prefix_length = random.randint(1, 3)
         suffix_length = random.randint(8, 11)
 
-        # 生成前缀和后缀
         prefix = ''.join(random.choices(string.ascii_letters, k=prefix_length))
         suffix = ''.join(random.choices(string.ascii_letters, k=suffix_length))
 
@@ -240,18 +230,13 @@ class MyMutator(gbf.Mutator):
         return new_s
 
 
-
-
     def mutate_depth_exe(self, s: str) -> str:
         # trace execution depth and time
         start_time = time.time()
-
-
         try:
             entrypoint(s)
         except Exception as e:
             pass
-
 
         duration = time.time() - start_time
 
@@ -273,7 +258,6 @@ class MyMutator(gbf.Mutator):
             self.next_phase()
 
         # based on shell sort
-
         if self.phase == 0:
             mutation_methods = [self.delete_random_character, self.insert_random_character]
 
@@ -294,18 +278,14 @@ class MyMutator(gbf.Mutator):
         mutator = random.choice(mutation_methods)
         mutated_inp = mutator(inp)
 
-        # 将变异后的数据转换为字符串
         if isinstance(mutated_inp, bytes):
             return mutated_inp.decode('utf-8', errors='ignore')
-            # 如果已经是字符串，直接返回
         return mutated_inp
 
 
     # def mutate(self, inp: Any) -> Any:
     #     mutator = random.choice(self.custom_mutators)
     #     return mutator(inp)
-
-
 
 
 
